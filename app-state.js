@@ -13,7 +13,7 @@ const read=(key,f)=>parse(localStorage.getItem(key),f);
 const write=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v))}catch{}return v};
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const originOf=value=>{try{return new URL(value,location.href).origin}catch{return''}};
-const settings=()=>({...{serviceHost:location.origin,aiMode:'auto',hostedPath:'/api/ai/chat',localEndpoint:'',locationPrecisionKm:5,shareValidationSummaries:true,shareCreatorCard:true},...read(KEYS.settings,{})});
+const settings=()=>({...{serviceHost:location.origin,aiMode:'auto',hostedPath:'/api/ai/chat',localEndpoint:'',localModel:'',locationPrecisionKm:5,shareValidationSummaries:true,shareCreatorCard:true,validationConfidenceThreshold:.85},...read(KEYS.settings,{})});
 const peers=()=>Array.isArray(read(KEYS.peers,[]))?read(KEYS.peers,[]):[];
 const records=()=>Array.isArray(read(KEYS.records,[]))?read(KEYS.records,[]):[];
 const sessions=()=>{try{return parse(sessionStorage.getItem(KEYS.sessions),{})||{}}catch{return{}}};

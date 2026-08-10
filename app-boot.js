@@ -3,5 +3,5 @@ input.addEventListener('input',()=>{input.style.height='auto';input.style.height
 $('#toolButton').addEventListener('click',()=>openTool('tools'));
 guideStrip.addEventListener('click',e=>{const b=e.target.closest('[data-guide]');if(b)selectGuide(b.dataset.guide)});
 
-function boot(){installPwa();renderGuides();restoreTranscript();setStatus(navigator.onLine?'local · online':'local · offline');addEventListener('online',()=>setStatus('local · online'));addEventListener('offline',()=>setStatus('local · offline'));}
+function boot(){installPwa();renderGuides();restoreTranscript();setStatus(navigator.onLine?'local · online':'local · offline');refreshPairingState().catch(()=>{});addEventListener('online',()=>setStatus('local · online'));addEventListener('offline',()=>setStatus('local · offline'));}
 boot();
