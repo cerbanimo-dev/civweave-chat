@@ -1,2 +1,0 @@
-const ACTION_HANDLERS=[handleCoreAction,handleWalletAction,handleNetworkAction,handleSystemAction];
-function bindMessageActions(scope){if(scope.__bound)return;scope.__bound=true;scope.addEventListener('click',async event=>{const target=event.target.closest?.('[data-action]');if(!target)return;const action=target.dataset.action,root=findRoot(target);try{for(const handler of ACTION_HANDLERS)if(await handler(action,root))return}catch(err){addMessage({guide:'weaveling',html:`<p class="error">${escapeHtml(err.message||String(err))}</p>`})}})}

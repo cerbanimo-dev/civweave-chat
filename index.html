@@ -4,69 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1117">
-  <meta name="description" content="Civweave Chat: the stripped-back, local-first Civweave feature surface.">
+  <meta name="description" content="Civweave Chat: local-first feature-complete MVP chat surface.">
   <title>Civweave Chat</title>
   <link rel="stylesheet" href="./app.css">
 </head>
 <body>
   <main class="app" id="app">
-    <header class="topbar">
-      <div>
-        <strong>Civweave</strong>
-        <small>features-only chat · pass 2</small>
-      </div>
-      <div class="status" id="statusPill" role="status">local</div>
-    </header>
-
+    <header class="topbar"><div><strong>Civweave</strong><small>chat MVP · pass 3</small></div><div class="status" id="statusPill" role="status">local</div></header>
     <section class="guides" aria-label="AI guides" id="guideStrip"></section>
-
     <section class="transcript" id="transcript" aria-live="polite" aria-label="Conversation"></section>
-
-    <form class="composer" id="composer">
-      <button class="icon-button" type="button" id="toolButton" aria-label="Open tools">＋</button>
-      <label class="sr-only" for="messageInput">Message Civweave</label>
-      <textarea id="messageInput" rows="1" placeholder="What do you want to become true?"></textarea>
-      <button class="send" type="submit">Send</button>
-    </form>
+    <form class="composer" id="composer"><button class="icon-button" type="button" id="toolButton" aria-label="Open tools">＋</button><label class="sr-only" for="messageInput">Message Civweave</label><textarea id="messageInput" rows="1" placeholder="What do you want to become true?"></textarea><button class="send" type="submit">Send</button></form>
   </main>
-
-  <template id="messageTemplate">
-    <article class="message">
-      <div class="message-head"></div>
-      <div class="message-body"></div>
-    </article>
-  </template>
-
+  <template id="messageTemplate"><article class="message"><div class="message-head"></div><div class="message-body"></div></article></template>
   <script src="./mesh.js" defer></script>
-  <script src="./app-config.js" defer></script>
-  <script src="./app-state.js" defer></script>
-  <script src="./app-ui.js" defer></script>
-  <script src="./app-wish.js" defer></script>
-  <script src="./app-validation-rollup.js" defer></script>
-  <script src="./app-validation-ui.js" defer></script>
-  <script src="./app-validation-core.js" defer></script>
-  <script src="./app-validation-peer-ui.js" defer></script>
-  <script src="./app-validation-peer-sync.js" defer></script>
-  <script src="./app-validation-peer.js" defer></script>
-  <script src="./app-flow-records.js" defer></script>
-  <script src="./app-flow-wallet.js" defer></script>
-  <script src="./app-flow-creator.js" defer></script>
-  <script src="./app-flow-commerce.js" defer></script>
-  <script src="./app-network-radar-ui.js" defer></script>
-  <script src="./app-network-radar-discovery.js" defer></script>
-  <script src="./app-network-radar.js" defer></script>
-  <script src="./app-network-pairing-request.js" defer></script>
-  <script src="./app-network-pairing-state.js" defer></script>
-  <script src="./app-network-pairing.js" defer></script>
-  <script src="./app-network-gossip.js" defer></script>
-  <script src="./app-ai-model.js" defer></script>
-  <script src="./app-ai-settings.js" defer></script>
-  <script src="./app-ai-runtime.js" defer></script>
-  <script src="./app-actions-core.js" defer></script>
-  <script src="./app-actions-wallet.js" defer></script>
-  <script src="./app-actions-network.js" defer></script>
-  <script src="./app-actions-system.js" defer></script>
-  <script src="./app-actions.js" defer></script>
-  <script src="./app-boot.js" defer></script>
+  <script src="./core.js" defer></script>
+  <script src="./weave.js" defer></script>
+  <script src="./validation.js" defer></script>
+  <script src="./payments.js" defer></script>
+  <script src="./realms.js" defer></script>
+  <script src="./peers.js" defer></script>
+  <script src="./ai.js" defer></script>
+  <script src="./actions.js" defer></script>
+  <script src="./boot.js" defer></script>
 </body>
 </html>

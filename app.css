@@ -35,3 +35,7 @@ button.action,.card button,.composer button{border:1px solid var(--line);border-
 .notice{padding:8px 9px;border-left:3px solid var(--accent);background:#101820;color:var(--muted);font-size:11px}.error{color:var(--danger)}.success{color:var(--ok)}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media (max-width:520px){.split{grid-template-columns:1fr}.kv{grid-template-columns:95px 1fr}.message-body{max-width:96%}}
+.journey-row{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.journey-row small{grid-column:2;color:var(--muted)}
+.node-dot.pending{background:var(--warn)}
+.warn{color:var(--warn)}
