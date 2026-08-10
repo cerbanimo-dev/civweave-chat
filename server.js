@@ -12,7 +12,7 @@ const STRIPE_WEBHOOK_SECRET=String(process.env.STRIPE_WEBHOOK_SECRET||'').trim()
 const CONFIGURED_APP_ORIGIN=normalizeOrigin(process.env.APP_ORIGIN||'');
 const MAX_BODY_BYTES=32*1024;
 const MAX_CHECKOUT_CENTS=Math.max(50,Number(process.env.STRIPE_MAX_CHECKOUT_CENTS)||1_000_000);
-const STATIC_FILES=new Set(['index.html','app.css','mesh.js','core.js','weave.js','validation.js','payments.js','realms.js','peers.js','ai.js','actions.js','boot.js','sw.js']);
+const STATIC_FILES=new Set(['index.html','app.css','mesh.js','core.js','weave.js','validation.js','payments.js','realms.js','hardening.js','peers.js','ai.js','actions.js','boot.js','sw.js']);
 const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8'};
 const rateBuckets=new Map();
 let stripePromise=null;
