@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION='0.1.0-phase1-chat';
+const VERSION='0.2.0-pass2-chat';
 const KEYS={
   state:'civweave.chat.state.v1',
   transcript:'civweave.chat.transcript.v1',
@@ -11,7 +11,10 @@ const KEYS={
   working:'civweave.working-campus.v1',
   rewards:'civweave.chat.rewards.v1',
   records:'civweave.chat.records.v1',
-  sessions:'civweave.node-ai-marketplace.sessions.v1'
+  sessions:'civweave.node-ai-marketplace.sessions.v1',
+  validations:'civweave.chat.validations.v2',
+  pairingInbox:'civweave.chat.pairing-inbox.v2',
+  addons:'civweave.chat.addons.v1'
 };
 
 const GUIDES={
@@ -28,6 +31,7 @@ const TOOLS=[
   ['work','🎁 Work','Quests, evidence and rewards'],
   ['market','🔘 Market','Services, materials and agreements'],
   ['govern','🧙 Govern','Consent, proposals and validation'],
+  ['validate','✓ Validate','Weighted confidence and payout gates'],
   ['wallet','💳 Wallet','Hosted AI balance and node credit'],
   ['nodes','📡 Nodes','Nearby peer minimap and pairing'],
   ['creator','🪪 Creator card','Edit your paid-service advert'],
