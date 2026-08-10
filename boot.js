@@ -7,8 +7,10 @@ function boot(){
   setStatus(navigator.onLine?'local · online':'local · offline');
   addEventListener('online',()=>setStatus('local · online'));addEventListener('offline',()=>setStatus('local · offline'));
   refreshPairingState().catch(()=>{});importPeerValidations().catch(()=>{});
-  const q=new URLSearchParams(location.search),ref=q.get('referenceId');
-  if(q.get('payment')==='success'&&ref)refreshAgreementReceipt(ref).then(r=>addMessage({guide:'rook',html:`<p class="success">Payment return received: ${escapeHtml(r.status)}</p>${settlementCard(ref)}`})).catch(()=>{});
-  if(q.get('nodeTopup'))addMessage({guide:'rook',html:`<p>Node top-up returned: ${escapeHtml(q.get('nodeTopup'))}.</p>${walletCard()}`});
+  const q=new URLSearchParams(location.search),ref=q.get('referenceId'),sessionId=q.get('session_id'),payment=q.get('payment'),nodeTopup=q.get('nodeTopup');
+  if(payment==='success'&&ref&&sessionId){rememberPaymentSession(ref,sessionId);refreshAgreementReceipt(ref,sessionId).then(r=>addMessage({guide:'rook',html:`<p class="${receiptMatchesAgreement(getRecord(ref),r)?'success':'warn'}">Stripe return verified: ${escapeHtml(r.status)}</p>${settlementCard(ref)}`})).catch(e=>addMessage({guide:'rook',html:`<p class="error">${escapeHtml(e.message)}</p>${settlementCard(ref)}`}))}
+  if(payment==='cancelled'&&ref)addMessage({guide:'rook',html:`<p>Stripe checkout was cancelled. No settlement was recorded.</p>${settlementCard(ref)}`});
+  if(nodeTopup)addMessage({guide:'rook',html:`<p>Node top-up returned: ${escapeHtml(nodeTopup)}.</p>${walletCard()}`});
+  if(payment||nodeTopup){const cleanUrl=new URL(location.href);for(const key of ['payment','referenceId','session_id','nodeTopup'])cleanUrl.searchParams.delete(key);history.replaceState(null,'',`${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`)}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();

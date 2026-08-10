@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION='0.3.0-pass3-mvp';
+const VERSION='0.3.1-security-stripe';
 const KEYS={
   state:'civweave.chat.state.v1', transcript:'civweave.chat.transcript.v1', peers:'civweave.chat.peers.v1',
   creator:'civweave.chat.creator.v1', settings:'civweave.chat.settings.v1', inbox:'civweave.realm-inbox.v1',
@@ -60,8 +60,11 @@ const parse=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
 const read=(key,f)=>parse(localStorage.getItem(key),f);
 const write=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v))}catch{}return v};
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const originOf=value=>{try{return new URL(value,location.href).origin}catch{return''}};
-const settings=()=>({...{serviceHost:location.origin,aiMode:'auto',hostedPath:'/api/ai/chat',localEndpoint:'',localModel:'',locationPrecisionKm:5,shareValidationSummaries:true,shareCreatorCard:true,validationConfidenceThreshold:.85,paymentsPath:'/api/payments',currency:'USD'},...read(KEYS.settings,{})});
+const originOf=value=>{try{const u=new URL(value,location.href);return ['http:','https:'].includes(u.protocol)?u.origin:''}catch{return''}};
+function safeApiPath(value,fallback){const v=String(value??'').trim();return /^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*$/.test(v)?v:fallback}
+function safeEndpoint(value,{originOnly=false}={}){if(!value)return'';try{const u=new URL(value,location.href);if(!['http:','https:'].includes(u.protocol))return'';return originOnly?u.origin:u.href}catch{return''}}
+function normalizedSettings(input={}){const d={serviceHost:location.origin,aiMode:'auto',hostedPath:'/api/ai/chat',localEndpoint:'',localModel:'',locationPrecisionKm:5,shareValidationSummaries:true,shareCreatorCard:true,validationConfidenceThreshold:.85,paymentsPath:'/api/payments',currency:'USD',allowRemotePrompts:false};const raw={...d,...input},modes=new Set(['auto','local','tiny','hosted','deterministic']);return{...raw,serviceHost:safeEndpoint(raw.serviceHost,{originOnly:true})||location.origin,aiMode:modes.has(raw.aiMode)?raw.aiMode:'auto',hostedPath:safeApiPath(raw.hostedPath,'/api/ai/chat'),localEndpoint:safeEndpoint(raw.localEndpoint),localModel:clean(raw.localModel,160),paymentsPath:safeApiPath(raw.paymentsPath,'/api/payments'),currency:/^[A-Za-z]{3}$/.test(String(raw.currency||''))?String(raw.currency).toUpperCase():'USD',locationPrecisionKm:Math.max(1,Math.min(100,Number(raw.locationPrecisionKm)||5)),validationConfidenceThreshold:Math.max(.1,Math.min(10,Number(raw.validationConfidenceThreshold)||.85)),shareValidationSummaries:Boolean(raw.shareValidationSummaries),shareCreatorCard:Boolean(raw.shareCreatorCard),allowRemotePrompts:Boolean(raw.allowRemotePrompts)}}
+const settings=()=>normalizedSettings(read(KEYS.settings,{}));
 const peers=()=>Array.isArray(read(KEYS.peers,[]))?read(KEYS.peers,[]):[];
 const records=()=>Array.isArray(read(KEYS.records,[]))?read(KEYS.records,[]):[];
 const events=()=>Array.isArray(read(KEYS.events,[]))?read(KEYS.events,[]):[];
@@ -96,5 +99,5 @@ function creatorPreview(c=creator(),peer=null){return `<div class="creator-previ
 function creatorEditor(){const c=creator();return card('Creator card',`<label><span>Display name</span><input data-field="displayName" value="${escapeHtml(c.displayName)}"></label><label><span>Paid services</span><textarea data-field="blurb" maxlength="280">${escapeHtml(c.blurb)}</textarea></label><label><span>Service tags</span><input data-field="services" value="${escapeHtml((c.services||[]).join(', '))}"></label><div class="split"><label><span>Rate / starting price</span><input data-field="rate" value="${escapeHtml(c.rate)}"></label><label><span>Availability</span><input data-field="availability" value="${escapeHtml(c.availability)}"></label></div><label><span>Contact/action endpoint</span><input data-field="contact" value="${escapeHtml(c.contact)}"></label><div class="row">${button('creator:save','Save Creator card','class="primary"')}</div><small>Shared only with paired peers when Creator-card gossip is enabled.</small>`)}
 function saveCreator(root){const c={displayName:field(root,'displayName')||'Creator',blurb:field(root,'blurb'),services:field(root,'services').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12),rate:field(root,'rate'),availability:field(root,'availability')||'Open',contact:field(root,'contact'),updatedAt:now()};write(KEYS.creator,c);audit('creator.updated',{displayName:c.displayName});return c}
 
-function manifest(){const icon=`data:image/svg+xml,${encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\"><rect width=\"512\" height=\"512\" rx=\"112\" fill=\"%230d1117\"/><text x=\"256\" y=\"330\" text-anchor=\"middle\" font-size=\"270\">🧭</text></svg>')}`;const data={name:'Civweave Chat',short_name:'Civweave',start_url:'./',display:'standalone',background_color:'#0d1117',theme_color:'#0d1117',icons:[{src:icon,sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]};const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/manifest+json'}));document.head.append(link)}
+function manifest(){const data={name:'Civweave Chat',short_name:'Civweave',start_url:'./',display:'standalone',background_color:'#0d1117',theme_color:'#0d1117',icons:[]};const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/manifest+json'}));document.head.append(link)}
 function installPwa(){manifest();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{})}

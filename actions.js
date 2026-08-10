@@ -33,7 +33,7 @@ async function bindActions(scope){if(scope.__bound)return;scope.__bound=true;sco
   if(action.startsWith('market:accept:')){const id=action.slice('market:accept:'.length);acceptAgreement(id,root);addMessage({guide:'rook',html:settlementCard(id)});return}
   if(action.startsWith('market:settle-card:')){addMessage({guide:'rook',html:settlementCard(action.slice('market:settle-card:'.length))});return}
   if(action.startsWith('market:settle-manual:')){const id=action.slice('market:settle-manual:'.length);settleExchange(id,'manual');addMessage({guide:'rook',html:`<p class="success">Zero-cost exchange settled.</p>${marketCard()}`});return}
-  if(action.startsWith('market:settle-paid:')){const id=action.slice('market:settle-paid:'.length);settleExchange(id,'paid');addMessage({guide:'rook',html:`<p class="success">Paid exchange receipt recorded as settled.</p>${marketCard()}`});return}
+  if(action.startsWith('market:settle-paid:')){const id=action.slice('market:settle-paid:'.length);await settlePaidExchange(id);addMessage({guide:'rook',html:`<p class="success">Stripe verified the exact payment and the exchange is settled.</p>${marketCard()}`});return}
 
   if(action==='govern:new'){addMessage({guide:'merlin',html:governanceNewCard()});return}
   if(action==='govern:save-new'){const r=newRecord('governance',field(root,'subtype')||'proposal',{title:field(root,'title')||'Governance record',proposal:field(root,'proposal'),consent:field(root,'consent')||'review',status:'review'});addMessage({guide:'merlin',html:governanceOpenCard(r.id)});return}
@@ -67,7 +67,7 @@ async function bindActions(scope){if(scope.__bound)return;scope.__bound=true;sco
   if(action.startsWith('node:accept:')){await respondPairRequest(action.slice('node:accept:'.length),true);addMessage({guide:'merlin',html:minimapCard()});return}
   if(action.startsWith('node:reject:')){await respondPairRequest(action.slice('node:reject:'.length),false);addMessage({guide:'merlin',html:minimapCard()});return}
   if(action.startsWith('node:validations:')){addMessage({guide:'merlin',html:peerValidationRequestsCard(action.slice('node:validations:'.length))});return}
-  if(action.startsWith('node:validate:')){const [, , peerIdEnc,targetIdEnc]=action.split(':');addMessage({guide:'merlin',html:peerValidationEvidenceCard(decodeURIComponent(peerIdEnc),decodeURIComponent(targetIdEnc))});return}
+  if(action.startsWith('node:validate:')){const [, ,peerIdEnc,targetIdEnc]=action.split(':');addMessage({guide:'merlin',html:peerValidationEvidenceCard(decodeURIComponent(peerIdEnc),decodeURIComponent(targetIdEnc))});return}
   if(action.startsWith('node:validation-save:')){const parts=action.split(':'),peerId=decodeURIComponent(parts[2]),targetId=decodeURIComponent(parts[3]);await savePeerValidation(peerId,targetId,root);addMessage({guide:'merlin',html:'<p class="success">Signed validation evidence returned to peer.</p>'});return}
 
   if(action.startsWith('download:tiny-router')){await ensureTiny(root);return}
