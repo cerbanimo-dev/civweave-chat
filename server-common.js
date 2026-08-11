@@ -1,0 +1,51 @@
+import { randomBytes, createHash, webcrypto } from 'node:crypto';
+
+const STRIPE_API_VERSION='2026-06-24.dahlia';
+const STRIPE_API_KEY=String(process.env.STRIPE_API_KEY||'').trim();
+const STRIPE_WEBHOOK_SECRET=String(process.env.STRIPE_WEBHOOK_SECRET||'').trim();
+const CONFIGURED_APP_ORIGIN=normalizeOrigin(process.env.APP_ORIGIN||'');
+const CONNECT_DEFAULT_CURRENCY=safeCurrency(process.env.STRIPE_CONNECT_DEFAULT_CURRENCY||'usd')||'usd';
+const PLATFORM_FEE_BPS=Math.max(0,Math.min(5000,Number(process.env.STRIPE_PLATFORM_FEE_BPS)||0));
+const MAX_BODY_BYTES=192*1024;
+const MAX_CHECKOUT_CENTS=Math.max(50,Number(process.env.STRIPE_MAX_CHECKOUT_CENTS)||1_000_000);
+const rateBuckets=new Map();
+const encoder=new TextEncoder();
+let stripePromise=null;
+
+function normalizeOrigin(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.origin:''}catch{return''}}
+function requestOrigin(req){if(CONFIGURED_APP_ORIGIN)return CONFIGURED_APP_ORIGIN;const host=String(req.headers.host||''),hostname=host.replace(/^\[/,'').replace(/\].*$/,'').split(':')[0];if(!['localhost','127.0.0.1','::1'].includes(hostname))return'';return `http://${host}`}
+function securityHeaders(req,{api=false}={}){const headers={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cross-Origin-Opener-Policy':'same-origin','Cross-Origin-Resource-Policy':'same-origin','Permissions-Policy':'camera=(), microphone=(), geolocation=(self)','Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; img-src 'none'; media-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; worker-src 'self' blob:; manifest-src 'self' blob:"};if(api)headers['Cache-Control']='no-store, max-age=0';const proto=String(req.headers['x-forwarded-proto']||'').split(',')[0].trim();if(proto==='https')headers['Strict-Transport-Security']='max-age=31536000; includeSubDomains';return headers}
+function json(res,status,body,req){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',...securityHeaders(req,{api:true})});res.end(JSON.stringify(body))}
+function text(res,status,body,req){res.writeHead(status,{'Content-Type':'text/plain; charset=utf-8',...securityHeaders(req)});res.end(body)}
+function clean(value,max=200){return String(value??'').trim().slice(0,max)}
+function safeReference(value){const v=clean(value,180);return /^[A-Za-z0-9._:-]+$/.test(v)?v:''}
+function safeCurrency(value){const v=clean(value,3).toLowerCase();return /^[a-z]{3}$/.test(v)?v:''}
+function safeCountry(value){const v=clean(value,2).toUpperCase();return /^[A-Z]{2}$/.test(v)?v:''}
+function safeEntityType(value){const v=clean(value,32);return ['individual','company','non_profit','government_entity'].includes(v)?v:''}
+function safeAccountId(value){const v=clean(value,220);return /^acct_[A-Za-z0-9]+$/.test(v)?v:''}
+function amountToCents(value){const n=Number(value);if(!Number.isFinite(n)||n<=0)return 0;const cents=Math.round((n+Number.EPSILON)*100);return cents>=50&&cents<=MAX_CHECKOUT_CENTS?cents:0}
+function integrationIdentifier(){const letters='abcdefghijklmnopqrstuvwxyz';let suffix='';for(const b of randomBytes(8))suffix+=letters[b%letters.length];return `civweave_chat_${suffix}`}
+function clientIp(req){return clean(String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0],120)}
+function rateAllowed(req,limit=30){const ip=clientIp(req)||'unknown',minute=Math.floor(Date.now()/60000),key=`${ip}:${minute}`,count=(rateBuckets.get(key)||0)+1;rateBuckets.set(key,count);if(rateBuckets.size>2000)for(const k of rateBuckets.keys())if(!k.endsWith(`:${minute}`))rateBuckets.delete(k);return count<=limit}
+function sameOriginRequest(req,appOrigin){const origin=normalizeOrigin(req.headers.origin||'');if(origin)return origin===appOrigin;return String(req.headers['sec-fetch-site']||'')==='same-origin'}
+async function readBody(req,{raw=false}={}){const chunks=[];let total=0;for await(const chunk of req){total+=chunk.length;if(total>MAX_BODY_BYTES)throw Object.assign(new Error('Request body too large.'),{status:413});chunks.push(chunk)}const body=Buffer.concat(chunks);if(raw)return body;if(!body.length)return{};try{return JSON.parse(body.toString('utf8'))}catch{throw Object.assign(new Error('Invalid JSON body.'),{status:400})}}
+async function getStripe(){if(!STRIPE_API_KEY)throw Object.assign(new Error('Stripe is not configured.'),{status:503});if(!stripePromise)stripePromise=import('stripe').then(({default:Stripe})=>new Stripe(STRIPE_API_KEY,{apiVersion:STRIPE_API_VERSION,maxNetworkRetries:2,timeout:15000}));return stripePromise}
+function returnUrl(req,kind,referenceId){const origin=requestOrigin(req);if(!origin)throw Object.assign(new Error('APP_ORIGIN is required outside localhost.'),{status:503});const u=new URL('/',origin);u.searchParams.set('payment',kind);u.searchParams.set('referenceId',referenceId);if(kind==='success')u.searchParams.set('session_id','{CHECKOUT_SESSION_ID}');return u.href.replace('%7BCHECKOUT_SESSION_ID%7D','{CHECKOUT_SESSION_ID}')}
+function connectReturnUrl(req,kind,accountId){const origin=requestOrigin(req);if(!origin)throw Object.assign(new Error('APP_ORIGIN is required outside localhost.'),{status:503});const u=new URL('/',origin);u.searchParams.set('connect',kind);u.searchParams.set('account_id',accountId);return u.href}
+function stripeReceipt(session,referenceId){const status=session.payment_status==='paid'||session.payment_status==='no_payment_required'?'paid':session.payment_status||'unpaid';return{schema:'civweave.payment-receipt.v1',provider:'stripe',referenceId,status,providerReference:session.id,amount:Number(session.amount_total||0)/100,currency:String(session.currency||'').toUpperCase(),paymentStatus:session.payment_status||null,createdAt:session.created?new Date(session.created*1000).toISOString():null}}
+
+function normalized(value){if(Array.isArray(value))return value.map(normalized);if(value&&typeof value==='object'){const out={};for(const key of Object.keys(value).sort())if(value[key]!==undefined)out[key]=normalized(value[key]);return out}return value}
+const canonical=value=>JSON.stringify(normalized(value));
+const hash=value=>createHash('sha256').update(typeof value==='string'?value:canonical(value)).digest('base64url');
+function meshSignable(o){return{schema:o.schema,id:o.id,revision:o.revision,kind:o.kind,purpose:o.purpose,audience:o.audience,consent:o.consent,payload:o.payload,payloadHash:o.payloadHash,parentIds:o.parentIds,createdAt:o.createdAt,updatedAt:o.updatedAt,expiresAt:o.expiresAt,origin:o.origin,hopLimit:o.hopLimit}}
+async function verifyMeshObject(o){try{if(o?.schema!=='civweave.community-object.v1'||!o.id||!o.revisionHash||!o.signature)return false;if(hash(o.payload)!==o.payloadHash||hash(meshSignable(o))!==o.revisionHash)return false;if(o.expiresAt&&Date.parse(o.expiresAt)<=Date.now())return false;const key=await webcrypto.subtle.importKey('jwk',o.origin?.credential,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);return webcrypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,Buffer.from(String(o.signature),'base64url'),encoder.encode(canonical(meshSignable(o))))}catch{return false}}
+async function verifyAgreementBundle(bundle){
+  const offer=bundle?.offer,acceptance=bundle?.acceptance;if(bundle?.schema!=='fellowfare.signed-agreement-bundle.v1'||!await verifyMeshObject(offer)||!await verifyMeshObject(acceptance))throw Object.assign(new Error('Signed agreement verification failed.'),{status:400});
+  if(offer.kind!=='fellowfare.agreement-offer.v1'||acceptance.kind!=='fellowfare.agreement-acceptance.v1'||offer.consent!=='direct'||acceptance.consent!=='direct')throw Object.assign(new Error('Agreement object kinds are invalid.'),{status:400});
+  const op=offer.payload||{},ap=acceptance.payload||{},referenceId=safeReference(op.referenceId),currency=safeCurrency(op.currency),amountCents=Number(op.amountCents)||0,platformFeeBps=Math.max(0,Math.min(5000,Number(op.platformFeeBps)||0)),platformFeeCents=Number(op.platformFeeCents),creatorPayoutCents=Number(op.creatorPayoutCents),accountId=safeAccountId(ap.connectedAccountId);
+  if(op.schema!=='fellowfare.agreement-offer.v1'||ap.schema!=='fellowfare.agreement-acceptance.v1'||!referenceId||!currency||amountCents<50||amountCents>MAX_CHECKOUT_CENTS||platformFeeBps!==PLATFORM_FEE_BPS||platformFeeCents!==Math.round(amountCents*platformFeeBps/10000)||creatorPayoutCents!==amountCents-platformFeeCents||creatorPayoutCents<=0)throw Object.assign(new Error('Agreement payload or signed payout terms are invalid for the current platform fee.'),{status:400});
+  if(offer.origin?.nodeId!==op.buyerNodeId||!offer.audience?.includes(op.creatorNodeId)||acceptance.origin?.nodeId!==op.creatorNodeId||!acceptance.audience?.includes(op.buyerNodeId)||!acceptance.parentIds?.includes(offer.id)||ap.offerId!==offer.id||ap.offerRevisionHash!==offer.revisionHash||ap.referenceId!==referenceId||ap.creatorNodeId!==op.creatorNodeId||ap.buyerNodeId!==op.buyerNodeId||ap.accepted!==true||!accountId)throw Object.assign(new Error('Agreement countersignature does not match the offer.'),{status:400});
+  return{referenceId,currency,amountCents,platformFeeBps,platformFeeCents,creatorPayoutCents,accountId,buyerNodeId:op.buyerNodeId,creatorNodeId:op.creatorNodeId,title:clean(op.title,120)||'Civweave agreement',offerHash:offer.revisionHash,acceptanceHash:acceptance.revisionHash,transferGroup:`cw_${hash(offer.revisionHash).slice(0,32)}`};
+}
+
+export { STRIPE_API_VERSION, STRIPE_API_KEY, STRIPE_WEBHOOK_SECRET, CONNECT_DEFAULT_CURRENCY, PLATFORM_FEE_BPS, MAX_CHECKOUT_CENTS, normalizeOrigin, requestOrigin, securityHeaders, json, text, clean, safeReference, safeCurrency, safeCountry, safeEntityType, safeAccountId, amountToCents, integrationIdentifier, rateAllowed, sameOriginRequest, readBody, getStripe, returnUrl, connectReturnUrl, stripeReceipt, hash, verifyAgreementBundle };

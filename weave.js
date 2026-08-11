@@ -26,7 +26,7 @@ function activateWeave(){const s=read(KEYS.working,{}),p=s.plan;if(!p)throw new 
 function passportCard(){const p=activeWeave();if(!p)return card('Passport','<p>Create a weave first.</p>');return card('Anarchadia Passport',`<p>${escapeHtml(p.wish)}</p><label><span>Personal pledge</span><textarea data-field="pledge">${escapeHtml(p.passport?.pledge||'I will keep this intention revisable, respect consent, and record what changes.')}</textarea></label><label class="row"><input data-field="confirmPassport" type="checkbox"> I choose to seal this intention in my local Passport.</label><div class="row">${button('passport:seal','Seal intention','class="primary"')}</div>`)}
 
 function journeyProgress(){const p=activeWeave(),s=read(KEYS.state,{}),all=records();const learning=all.filter(r=>r.kind==='learning'),work=all.filter(r=>r.kind==='work'),market=all.filter(r=>r.kind==='market');const checks={
-  'civweave.model-setup':Boolean(s.modelSetupAt||settings().localEndpoint||addonState?.()['tiny-router']?.installed),
+  'civweave.model-setup':Boolean(s.modelSetupAt||settings().localEndpoint),
   'civweave.state-wish':Boolean(p?.wish),'civweave.clarify-wish':Boolean(p?.clarifiedAt),'civweave.skill-posture':Boolean(p?.skillAt),
   'civweave.generate-weave':Boolean(p?.generatedAt),'civweave.review-weave':Boolean(p?.reviewedAt),'civweave.activate-weave':Boolean(p?.activatedAt),
   'living-school.start-path':learning.some(r=>r.subtype==='learning-path'&&['active','complete'].includes(r.status)),

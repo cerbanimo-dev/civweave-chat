@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION='0.3.1-security-stripe';
+const VERSION='0.4.0-connect-adaptive-ai';
 const KEYS={
   state:'civweave.chat.state.v1', transcript:'civweave.chat.transcript.v1', peers:'civweave.chat.peers.v1',
   creator:'civweave.chat.creator.v1', settings:'civweave.chat.settings.v1', inbox:'civweave.realm-inbox.v1',
@@ -49,10 +49,9 @@ const SYSTEMS={
   anarchadia:{guide:'merlin',families:['passport','proposals','roles','consent','votes','review','appeals','system draft/projection handoffs']}
 };
 
-const ADDONS=[{id:'tiny-router',name:'Tiny Router LM',modelId:'HuggingFaceTB/SmolLM2-360M-Instruct',modelCandidates:['onnx-community/SmolLM2-360M-Instruct-ONNX','HuggingFaceTB/SmolLM2-360M-Instruct'],approxBytes:272737275,runtime:'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2/+esm',recommended:true,required:false,description:'Optional local route-lock and short-response model. The base app ships without model weights.'}];
 
 const $=sel=>document.querySelector(sel), transcript=$('#transcript'), composer=$('#composer'), input=$('#messageInput'), guideStrip=$('#guideStrip'), statusPill=$('#statusPill'), tpl=$('#messageTemplate');
-let activeGuide='weaveling', tinyPipeline=null, tinyLoading=null;
+let activeGuide='weaveling';
 const now=()=>new Date().toISOString();
 const uid=prefix=>`${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
 const clean=(v,max=8000)=>String(v??'').trim().slice(0,max);
@@ -63,7 +62,7 @@ const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const originOf=value=>{try{const u=new URL(value,location.href);return ['http:','https:'].includes(u.protocol)?u.origin:''}catch{return''}};
 function safeApiPath(value,fallback){const v=String(value??'').trim();return /^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*$/.test(v)?v:fallback}
 function safeEndpoint(value,{originOnly=false}={}){if(!value)return'';try{const u=new URL(value,location.href);if(!['http:','https:'].includes(u.protocol))return'';return originOnly?u.origin:u.href}catch{return''}}
-function normalizedSettings(input={}){const d={serviceHost:location.origin,aiMode:'auto',hostedPath:'/api/ai/chat',localEndpoint:'',localModel:'',locationPrecisionKm:5,shareValidationSummaries:true,shareCreatorCard:true,validationConfidenceThreshold:.85,paymentsPath:'/api/payments',currency:'USD',allowRemotePrompts:false};const raw={...d,...input},modes=new Set(['auto','local','tiny','hosted','deterministic']);return{...raw,serviceHost:safeEndpoint(raw.serviceHost,{originOnly:true})||location.origin,aiMode:modes.has(raw.aiMode)?raw.aiMode:'auto',hostedPath:safeApiPath(raw.hostedPath,'/api/ai/chat'),localEndpoint:safeEndpoint(raw.localEndpoint),localModel:clean(raw.localModel,160),paymentsPath:safeApiPath(raw.paymentsPath,'/api/payments'),currency:/^[A-Za-z]{3}$/.test(String(raw.currency||''))?String(raw.currency).toUpperCase():'USD',locationPrecisionKm:Math.max(1,Math.min(100,Number(raw.locationPrecisionKm)||5)),validationConfidenceThreshold:Math.max(.1,Math.min(10,Number(raw.validationConfidenceThreshold)||.85)),shareValidationSummaries:Boolean(raw.shareValidationSummaries),shareCreatorCard:Boolean(raw.shareCreatorCard),allowRemotePrompts:Boolean(raw.allowRemotePrompts)}}
+function normalizedSettings(input={}){const d={serviceHost:location.origin,aiMode:'auto',hostedPath:'/api/ai/chat',localEndpoint:'',localModel:'',locationPrecisionKm:5,shareValidationSummaries:true,shareCreatorCard:true,validationConfidenceThreshold:.85,paymentsPath:'/api/payments',currency:'USD',allowRemotePrompts:false};const raw={...d,...input},modes=new Set(['auto','browser','local','hosted','deterministic']);return{...raw,serviceHost:safeEndpoint(raw.serviceHost,{originOnly:true})||location.origin,aiMode:modes.has(raw.aiMode)?raw.aiMode:'auto',hostedPath:safeApiPath(raw.hostedPath,'/api/ai/chat'),localEndpoint:safeEndpoint(raw.localEndpoint),localModel:clean(raw.localModel,160),paymentsPath:safeApiPath(raw.paymentsPath,'/api/payments'),currency:/^[A-Za-z]{3}$/.test(String(raw.currency||''))?String(raw.currency).toUpperCase():'USD',locationPrecisionKm:Math.max(1,Math.min(100,Number(raw.locationPrecisionKm)||5)),validationConfidenceThreshold:Math.max(.1,Math.min(10,Number(raw.validationConfidenceThreshold)||.85)),shareValidationSummaries:Boolean(raw.shareValidationSummaries),shareCreatorCard:Boolean(raw.shareCreatorCard),allowRemotePrompts:Boolean(raw.allowRemotePrompts)}}
 const settings=()=>normalizedSettings(read(KEYS.settings,{}));
 const peers=()=>Array.isArray(read(KEYS.peers,[]))?read(KEYS.peers,[]):[];
 const records=()=>Array.isArray(read(KEYS.records,[]))?read(KEYS.records,[]):[];

@@ -27,10 +27,10 @@ async function bindActions(scope){if(scope.__bound)return;scope.__bound=true;sco
 
   if(action==='market:new'){addMessage({guide:'rook',html:marketNewCard()});return}
   if(action==='market:save-new'){const t=newRecord('market','market-thread',{title:field(root,'title')||'Market thread',needOrOffer:field(root,'needOrOffer'),terms:field(root,'terms'),amount:Math.max(0,Number(field(root,'amount'))||0),currency:(field(root,'currency')||settings().currency).toUpperCase(),status:'open'});draftSystemEvent('fellowfare.resource.available','fellowfare','civweave',{threadId:t.id});addMessage({guide:'rook',html:marketCard()});return}
-  if(action.startsWith('market:agreement-save:')){const threadId=action.slice('market:agreement-save:'.length),t=getRecord(threadId);if(!t)throw new Error('Thread not found.');const a=newRecord('market','agreement',{threadId,title:`Agreement · ${t.title}`,counterparty:field(root,'counterparty'),terms:field(root,'terms'),amount:Math.max(0,Number(field(root,'amount'))||0),currency:(field(root,'currency')||settings().currency).toUpperCase(),status:'review'});addMessage({guide:'rook',html:acceptAgreementCard(a.id)});return}
+  if(action.startsWith('market:agreement-save:')){const threadId=action.slice('market:agreement-save:'.length),a=createAgreementFromDraft(threadId,root);addMessage({guide:'rook',html:acceptAgreementCard(a.id)});return}
   if(action.startsWith('market:agreement:')){addMessage({guide:'rook',html:agreementDraftCard(action.slice('market:agreement:'.length))});return}
-  if(action.startsWith('market:accept-card:')){addMessage({guide:'rook',html:acceptAgreementCard(action.slice('market:accept-card:'.length))});return}
-  if(action.startsWith('market:accept:')){const id=action.slice('market:accept:'.length);acceptAgreement(id,root);addMessage({guide:'rook',html:settlementCard(id)});return}
+  if(action.startsWith('market:accept-card:')){const id=action.slice('market:accept-card:'.length);await prepareAgreementForSignature(id);addMessage({guide:'rook',html:acceptAgreementCard(id)});return}
+  if(action.startsWith('market:accept:')){const id=action.slice('market:accept:'.length);await acceptAgreementSecure(id,root);addMessage({guide:'rook',html:settlementCard(id)});return}
   if(action.startsWith('market:settle-card:')){addMessage({guide:'rook',html:settlementCard(action.slice('market:settle-card:'.length))});return}
   if(action.startsWith('market:settle-manual:')){const id=action.slice('market:settle-manual:'.length);settleExchange(id,'manual');addMessage({guide:'rook',html:`<p class="success">Zero-cost exchange settled.</p>${marketCard()}`});return}
   if(action.startsWith('market:settle-paid:')){const id=action.slice('market:settle-paid:'.length);await settlePaidExchange(id);addMessage({guide:'rook',html:`<p class="success">Stripe verified the exact payment and the exchange is settled.</p>${marketCard()}`});return}
@@ -55,6 +55,12 @@ async function bindActions(scope){if(scope.__bound)return;scope.__bound=true;sco
   if(action.startsWith('wallet:nodecard:')){const id=action.slice('wallet:nodecard:'.length),p=peers().find(x=>x.id===id);addMessage({guide:'rook',html:card('Node credit',`<div data-pay-node="${escapeHtml(id)}">${creatorPreview(p?.creator||{},p)}<label><span>Dollars</span><input type="number" min="1" max="1000" value="5" data-field="amount"></label>${button(`wallet:pay:${id}`,'Open secure checkout','class="primary"')}</div>`)});return}
 
   if(action==='creator:save'){const c=saveCreator(root);addMessage({guide:'rook',html:`<p class="success">Creator card saved.</p>${creatorPreview(c)}`});return}
+  if(action==='connect:onboard'){await startCreatorOnboarding(root);return}
+  if(action==='connect:refresh'){const cs=await refreshCreatorConnectStatus();addMessage({guide:'rook',html:`<p class="${cs.ready?'success':'warn'}">Stripe payout status: ${escapeHtml(cs.status||'pending')}.</p>${creatorEditor()}`});return}
+  if(action==='commerce:refresh'){await refreshCommerceState();addMessage({guide:'rook',html:marketCard()});return}
+  if(action.startsWith('commerce:review:')){addMessage({guide:'rook',html:incomingAgreementReviewCard(decodeURIComponent(action.slice('commerce:review:'.length)))});return}
+  if(action.startsWith('commerce:accept:')){await respondIncomingAgreement(decodeURIComponent(action.slice('commerce:accept:'.length)),true,root);addMessage({guide:'rook',html:`<p class="success">Agreement countersigned and returned.</p>${marketCard()}`});return}
+  if(action.startsWith('commerce:reject:')){await respondIncomingAgreement(decodeURIComponent(action.slice('commerce:reject:'.length)),false);addMessage({guide:'rook',html:marketCard()});return}
   if(action==='nodes:locate'){await locateNodes(root);return}
   if(action==='nodes:refresh'){await refreshPeers(root);return}
   if(action==='nodes:add'){addMessage({guide:'rook',html:addPeerCard()});return}
@@ -70,12 +76,18 @@ async function bindActions(scope){if(scope.__bound)return;scope.__bound=true;sco
   if(action.startsWith('node:validate:')){const [, ,peerIdEnc,targetIdEnc]=action.split(':');addMessage({guide:'merlin',html:peerValidationEvidenceCard(decodeURIComponent(peerIdEnc),decodeURIComponent(targetIdEnc))});return}
   if(action.startsWith('node:validation-save:')){const parts=action.split(':'),peerId=decodeURIComponent(parts[2]),targetId=decodeURIComponent(parts[3]);await savePeerValidation(peerId,targetId,root);addMessage({guide:'merlin',html:'<p class="success">Signed validation evidence returned to peer.</p>'});return}
 
-  if(action.startsWith('download:tiny-router')){await ensureTiny(root);return}
-  if(action.startsWith('download:test:tiny-router')){const out=await tinyGenerate('Reply with exactly: local model ready',root);addMessage({guide:'weaveling',html:`<p>${escapeHtml(out||'No output')}</p>`});return}
+  if(action.startsWith('model:activate:')){const id=decodeURIComponent(action.slice('model:activate:'.length));saveModelOptionsFromRoot(root,id);await activateBrowserModel(id,{root});addMessage({guide:'weaveling',html:downloadsCard()});return}
+  if(action.startsWith('model:test:')){const id=decodeURIComponent(action.slice('model:test:'.length));saveModelOptionsFromRoot(root,id);await activateBrowserModel(id,{root,test:true});return}
+  if(action==='model:add'){const id=addCustomBrowserModel(root);addMessage({guide:'weaveling',html:`<p class="success">Model added to the local registry.</p>${downloadsCard()}`});return}
+  if(action==='model:warm-save'){const enabled=saveModelWarmPreference(root);addMessage({guide:'weaveling',html:`<p class="success">Startup model warming ${enabled?'enabled':'disabled'}.</p>${downloadsCard()}`});return}
+  if(action==='model:clear-cache'){if(await clearBrowserModelCache())addMessage({guide:'weaveling',html:downloadsCard()});return}
+  if(action==='model:storage'){const e=await storageEstimate(),target=root.querySelector('[data-model-storage]');if(target)target.textContent=e.quota?`${Math.round(e.usage/1024/1024)} MB used of ${Math.round(e.quota/1024/1024)} MB browser storage`:'Storage estimate unavailable.';return}
+  if(action.startsWith('download:tiny-router')){await activateBrowserModel('smollm2-360m',{root});return}
+  if(action.startsWith('download:test:tiny-router')){await activateBrowserModel('smollm2-360m',{root,test:true});return}
   if(action==='settings:save'){saveSettings(root);addMessage({guide:'weaveling',html:`<p class="success">Settings saved.</p>${journeyCard()}`});return}
   if(action==='settings:testlocal'){saveSettings(root);await testLocalApi(root);return}
   if(action==='backup:export'){exportBackup();addMessage({guide:'weaveling',html:'<p class="success">Backup exported.</p>'});return}
   if(action==='backup:import-card'){addMessage({guide:'weaveling',html:backupCard()});return}
   if(action==='backup:restore'){restoreBackup(root);addMessage({guide:'weaveling',html:'<p class="success">Backup restored. Reloading local view…</p>'});setTimeout(()=>location.reload(),100);return}
-  if(action==='records:clear'){if(!confirm('Clear Civweave Chat local state on this device?'))return;Object.values(KEYS).forEach(k=>localStorage.removeItem(k));sessionStorage.removeItem(KEYS.sessions);location.reload();return}
+  if(action==='records:clear'){if(!confirm('Clear Civweave Chat local state on this device?'))return;Object.values(KEYS).forEach(k=>localStorage.removeItem(k));for(const k of [MODEL_REGISTRY_KEY,CONNECT_STATE_KEY,CONNECT_INBOX_KEY,PAYMENT_SESSION_KEY])try{localStorage.removeItem(k)}catch{};sessionStorage.removeItem(KEYS.sessions);location.reload();return}
 }catch(err){addMessage({guide:'weaveling',html:`<p class="error">${escapeHtml(err.message||String(err))}</p>`})}})}

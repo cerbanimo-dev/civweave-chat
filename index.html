@@ -11,13 +11,14 @@
 </head>
 <body>
   <main class="app" id="app">
-    <header class="topbar"><div><strong>Civweave</strong><small>chat MVP · secure Stripe</small></div><div class="status" id="statusPill" role="status">local</div></header>
+    <header class="topbar"><div><strong>Civweave</strong><small>chat MVP · local AI + Stripe</small></div><div class="status" id="statusPill" role="status">local</div></header>
     <section class="guides" aria-label="AI guides" id="guideStrip"></section>
     <section class="transcript" id="transcript" aria-live="polite" aria-label="Conversation"></section>
     <form class="composer" id="composer"><button class="icon-button" type="button" id="toolButton" aria-label="Open tools">＋</button><label class="sr-only" for="messageInput">Message Civweave</label><textarea id="messageInput" rows="1" placeholder="What do you want to become true?"></textarea><button class="send" type="submit">Send</button></form>
   </main>
   <template id="messageTemplate"><article class="message"><div class="message-head"></div><div class="message-body"></div></article></template>
   <script src="./mesh.js" defer></script>
+  <script src="./commerce-mesh.js" defer></script>
   <script src="./core.js" defer></script>
   <script src="./weave.js" defer></script>
   <script src="./validation.js" defer></script>
@@ -25,7 +26,12 @@
   <script src="./realms.js" defer></script>
   <script src="./hardening.js" defer></script>
   <script src="./peers.js" defer></script>
+  <script src="./connect-creator.js" defer></script>
+  <script src="./connect-agreement.js" defer></script>
+  <script src="./connect-settlement.js" defer></script>
   <script src="./ai.js" defer></script>
+  <script src="./models-core.js" defer></script>
+  <script src="./models-ui.js" defer></script>
   <script src="./actions.js" defer></script>
   <script src="./boot.js" defer></script>
 </body>
