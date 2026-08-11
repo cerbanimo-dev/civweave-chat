@@ -1,0 +1,16 @@
+{
+  "name": "civweave-chat",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check server-common.js && node --check server-connect.js && node --check server-payments.js && node --check mesh.js && node --check commerce-mesh.js && node --check core.js && node --check weave.js && node --check validation.js && node --check payments.js && node --check realms.js && node --check hardening.js && node --check peers.js && node --check connect-creator.js && node --check connect-agreement.js && node --check connect-settlement.js && node --check ai.js && node --check models-core.js && node --check models-ui.js && node --check model-worker.js && node --check actions.js && node --check boot.js && node --check sw.js"
+  },
+  "dependencies": {
+    "stripe": "22.1.1"
+  }
+}

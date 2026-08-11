@@ -1,11 +1,8 @@
-const CACHE='civweave-chat-v1';
-const CORE=['./','./index.html','./app.css','./mesh.js','./app-config.js','./app-state.js','./app-ui.js','./app-wish.js','./app-flow.js','./app-network.js','./app-ai.js','./app-actions.js','./app-boot.js'];
+const CACHE='civweave-chat-v5-model-connect';
+const RUNTIME_CACHE='civweave-model-runtime-v1';
+const CORE=['./index.html','./app.css','./mesh.js','./commerce-mesh.js','./core.js','./weave.js','./validation.js','./payments.js','./realms.js','./hardening.js','./peers.js','./connect-creator.js','./connect-agreement.js','./connect-settlement.js','./ai.js','./models-core.js','./models-ui.js','./model-worker.js','./actions.js','./boot.js'];
+const PATHS=new Set(['/',...CORE.map(x=>new URL(x,self.location.origin).pathname)]);
+function modelRuntimeRequest(url){return url.hostname==='cdn.jsdelivr.net'&&(url.pathname.startsWith('/npm/@huggingface/transformers@3.8.1')||url.pathname.startsWith('/npm/onnxruntime-web@'))}
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET')return;
-  event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(response=>{
-    if(response.ok&&new URL(event.request.url).origin===location.origin){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));}
-    return response;
-  }).catch(()=>caches.match('./index.html'))));
-});
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>![CACHE,RUNTIME_CACHE].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const url=new URL(event.request.url);if(modelRuntimeRequest(url)){event.respondWith(caches.open(RUNTIME_CACHE).then(async cache=>{const hit=await cache.match(event.request);if(hit)return hit;const response=await fetch(event.request);if(response.ok)cache.put(event.request,response.clone());return response}));return}if(url.origin!==location.origin||url.pathname.startsWith('/api/')||!PATHS.has(url.pathname))return;const key=url.pathname==='/'?'./index.html':`.${url.pathname}`;event.respondWith(fetch(event.request).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(key,response.clone()));return response}).catch(()=>caches.match(key,{ignoreSearch:true}))) });
